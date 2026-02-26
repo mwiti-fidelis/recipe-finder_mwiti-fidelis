@@ -1,0 +1,348 @@
+import { useState, useEffect } from 'react'
+
+function App() {
+  // Theme state for dark/light mode
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme')
+    console.log('Loaded theme from localStorage:', saved)
+    return saved || 'light'
+  })
+
+  // Apply theme class to HTML element and save to localStorage
+  useEffect(() => {
+    // console.log('Theme changed to:', theme)
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  // Toggle theme function
+  const toggleTheme = () => {
+    setTheme(prev => {
+      const newTheme = prev === 'light' ? 'dark' : 'light'
+      console.log('Changing theme from', prev, 'to', newTheme)
+      return newTheme
+    })
+  }
+
+  const [searchTerm, setSearchTerm] = useState('')
+  const [recipes, setRecipes] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [selectedRecipe, setSelectedRecipe] = useState(null)
+  const [showFavorites, setShowFavorites] = useState(false)
+
+  // Fixed: Removed extra spaces in API URL
+  const API_BASE = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
+
+  useEffect(() => {
+    // This is to  prevent the live search if less than 3 characters have been typedto reduce API calls
+    if (searchTerm.length < 3) {
+      setRecipes([])
+      return
+    }
+
+    // Setup Debounce Timer to optimize the API calls
+    const delayDebounce = setTimeout(() => {
+      fetchRecipes()
+    }, 600) 
+    // Wait 600ms after user stops typing to then initiate the API call that searches for the food. If the user types again, stop the timeout
+    return () => clearTimeout(delayDebounce)
+  }, [searchTerm])
+
+  //function to fetch the recipe from the API using the search item. Convert the response to json.
+  const fetchRecipes = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`${API_BASE}${searchTerm}`)
+      const data = await response.json()
+//if the meal has not been found, it will return an empty array and error
+      if (data.meals) {
+        setRecipes(data.meals)
+      } else {
+        setRecipes([])
+        setError('No recipes found. Try something else.')
+      }
+    } catch (err) {
+      setError('Failed to fetch recipes. Check your connection.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+//function to extract the ingredients and measures from the API
+  function getIngredients (recipe){
+    const ingredients = [];
+    for(let i = 1; i <= 20; i++){
+      const ingredient = recipe[`strIngredient${i}`]
+      const measure = recipe[`strMeasure${i}`];
+
+      if(ingredient && ingredient.trim() !== ""){
+        ingredients.push(`${measure ? measure.trim() : ""} ${ingredient.trim()}`);
+      }
+    }
+    return ingredients;
+  }
+
+  //function to embed the youtube video url
+  function getYoutubeEmbed (url){
+    if(!url) return null;
+    const videoId = url.split("v=")[1]
+    if(!videoId) return null
+    // Fixed: Removed extra spaces in embed URL
+    const embedUrl = `https://www.youtube.com/embed/${videoId}`
+    return embedUrl
+  }
+//Adding favorites dishes
+  const [favorites, setFavorites] = useState(()=>{
+    const saved = localStorage.getItem('recipeFavorites')
+    return saved ? JSON.parse(saved) : []
+  })
+  //function to toggle between favorites
+    const toggleFavorite = (recipe) => {
+    const isFavorite = favorites.some(fav => fav.idMeal === recipe.idMeal)
+    let newFavorites
+    
+    if (isFavorite) {
+      newFavorites = favorites.filter(fav => fav.idMeal !== recipe.idMeal)
+    } else {
+      newFavorites = [...favorites, recipe]
+    }
+    
+    setFavorites(newFavorites)
+    localStorage.setItem('recipeFavorites', JSON.stringify(newFavorites))
+  }
+  //Function to check if a meal is alredya favorite
+  const isFavorite = (recipeId) => {
+    return favorites.some(fav => fav.idMeal === recipeId)
+  }
+
+  //:::::::::::VIEW RECIPE:::::::::::::
+  if(selectedRecipe){
+    const ingredients = getIngredients(selectedRecipe)
+    const videoUrl = getYoutubeEmbed(selectedRecipe.strYoutube)
+
+    return (
+      <div className="min-h-screen p-4 md:p-8 bg-gray-50 dark:bg-gray-900 transition-colors">
+        <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+          {/* Header Image */}
+          <div className="relative h-64 md:h-96">
+            <img 
+              src={selectedRecipe.strMealThumb} 
+              alt={selectedRecipe.strMeal} 
+              className="w-full h-full object-cover"
+            />
+            <button 
+              onClick={() => setSelectedRecipe(null)}
+              className="absolute top-4 left-4 bg-white/90 dark:bg-gray-900/90 hover:bg-white dark:hover:bg-gray-800 text-gray-800 dark:text-gray-100 px-4 py-2 rounded-lg font-semibold shadow-md transition"
+            >
+              ← Back to Search
+            </button>
+          </div>
+
+          <div className="p-6 md:p-8">
+            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-2">{selectedRecipe.strMeal}</h1>
+            <div className="flex flex-wrap gap-4 mb-6 text-sm text-gray-600 dark:text-gray-300">
+              <span className="bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 px-3 py-1 rounded-full">🍽️ {selectedRecipe.strCategory}</span>
+              <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full">🌍 {selectedRecipe.strArea}</span>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8">
+              {/* Ingredients */}
+              <div>
+                <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100 border-b dark:border-gray-700 pb-2">Ingredients</h2>
+                <ul className="space-y-2">
+                  {ingredients.map((item, index) => (
+                    <li key={index} className="flex items-center text-gray-700 dark:text-gray-300">
+                      <span className="w-2 h-2 bg-orange-500 rounded-full mr-3"></span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Video */}
+              <div>
+                <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100 border-b dark:border-gray-700 pb-2">Video Tutorial</h2>
+                {videoUrl ? (
+                  <iframe 
+                    className="w-full aspect-video rounded-lg shadow-md"
+                    src={videoUrl} 
+                    title="YouTube video player" 
+                    frameBorder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowFullScreen
+                  ></iframe>
+                ) : (
+                  <p className="text-gray-500 dark:text-gray-400 italic">No video available for this recipe.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100 border-b dark:border-gray-700 pb-2">Instructions</h2>
+              <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">{selectedRecipe.strInstructions}</p>
+            </div>
+
+            {/* Source Link */}
+            <div className="mt-8 pt-6 border-t dark:border-gray-700">
+              <a 
+                href={selectedRecipe.strSource} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-orange-600 dark:text-orange-400 hover:text-orange-800 dark:hover:text-orange-300 font-semibold underline"
+              >View Original Recipe</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+  
+  // ::::::::::VIEW SEARCH LIST::::::::::::
+  return (
+    <div className="min-h-screen p-4 md:p-8 bg-gray-50 dark:bg-gray-900 transition-colors">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* Logo and Header Section */}
+        <div className="flex flex-col items-center mb-8 space-y-4">
+          {/* Logo with styling */}
+          <div className="relative group">
+            <div className="absolute inset-0 bg-orange-500 rounded-full blur-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
+            <img 
+              src="https://plus.unsplash.com/premium_vector-1739863904916-f0cd6c8058b1?w=352&dpr=2&h=367&auto=format&fit=crop&q=60&ixlib=rb-4.1.0"
+              alt="Recipe Finder Logo"
+              className="relative w-28 h-28 md:w-32 md:h-32 object-contain rounded-full shadow-2xl transform group-hover:scale-105 transition-transform duration-300 bg-white dark:bg-gray-800 p-2"
+            />
+          </div>
+          
+          {/* Title and Theme Toggle */}
+          <div className="flex items-center gap-3">
+            <h1 className="text-4xl font-bold text-orange-600 dark:text-orange-400 text-center">
+              RECIPE PRO
+            </h1>
+            
+            {/* Simple Theme Toggle Button */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-yellow-400 hover:bg-gray-300 dark:hover:bg-gray-600 transition text-sm font-medium"
+              aria-label="Toggle dark mode"
+            >
+              {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+            </button>
+          </div>
+          
+          {/* Tagline */}
+          <p className="text-gray-600 dark:text-gray-400 text-center">
+            Discover Delicious Recipes from Around the World 🌍
+          </p>
+        </div>
+
+        {/* Decorative Divider */}
+        <div className="flex items-center justify-center mb-6 space-x-4">
+          <div className="h-px bg-gradient-to-r from-transparent via-orange-400 to-transparent w-1/4"></div>
+          <span className="text-xl">🍳</span>
+          <div className="h-px bg-gradient-to-r from-transparent via-orange-400 to-transparent w-1/4"></div>
+        </div>
+
+        {/* Favorites Tab */}
+        <div className="flex justify-center gap-4 mb-6">
+          <button
+            onClick={() => setShowFavorites(false)}
+            className={`px-4 py-2 rounded-lg font-semibold transition ${
+              !showFavorites ? 'bg-orange-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            All Recipes
+          </button>
+          <button
+            onClick={() => setShowFavorites(true)}
+            className={`px-4 py-2 rounded-lg font-semibold transition ${
+              showFavorites ? 'bg-orange-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            My Favorites ({favorites.length})
+          </button>
+        </div>
+        
+        {/* Search Bar */}
+        <div className="flex gap-4 mb-8 justify-center">
+          <input
+            type="text"
+            placeholder="Search for a meal (e.g., Chicken)..."
+            className="px-4 py-2 border rounded-lg w-full max-w-md focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-sm bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-gray-300 dark:border-gray-700"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center text-gray-600 dark:text-gray-400">
+            <p>Searching delicious recipes...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <p className="text-center text-red-500 font-medium">{error}</p>
+        )}
+
+        {/* No Results Message */}
+        {!loading && !error && recipes.length === 0 && searchTerm.length >= 3 && (
+          <p className="text-center text-gray-500 dark:text-gray-400">No results found. Try a different dish.</p>
+        )}
+
+        {/* Recipe Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {(showFavorites ? favorites : recipes).map((recipe) => (
+            <div 
+              key={recipe.idMeal} 
+              onClick={() => setSelectedRecipe(recipe)}
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300 cursor-pointer transform hover:-translate-y-1 border border-gray-100 dark:border-gray-700"
+            >
+              <img
+                src={recipe.strMealThumb}
+                alt={recipe.strMeal}
+                className="w-full h-48 object-cover"
+              />
+              <div className="p-4">
+                <div className="flex justify-between items-start mb-2">
+                  <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{recipe.strMeal}</h2>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleFavorite(recipe)
+                    }}
+                    className={`text-2xl transition ${
+                      isFavorite(recipe.idMeal) ? 'text-red-500' : 'text-gray-300 dark:text-gray-600 hover:text-red-400'
+                    }`}
+                  >
+                    ♥
+                  </button>
+                </div>
+                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                  <span>🍽️ {recipe.strCategory}</span>
+                  <span>🌍 {recipe.strArea}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {showFavorites && favorites.length === 0 && (
+          <p className="text-center text-gray-500 dark:text-gray-400 mt-8">
+            No favorites yet. Click the ♥ on recipes to add them to favorites!
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default App
