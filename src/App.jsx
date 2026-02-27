@@ -36,6 +36,7 @@ function App() {
   const [showFavorites, setShowFavorites] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('')
   const [showShoppingList, setShowShoppingList] = useState(false)
+  const [toast, setToast] = useState({ show: false, message: '' })
   const [shoppingList, setShoppingList] = useState(() => {
     const savedShopping = localStorage.getItem("shoppingList")
     return savedShopping ? JSON.parse(savedShopping) : []
@@ -191,20 +192,32 @@ function getIngredients(recipe){
 
   //Add shopping list functons for accessing data, updating and displaying data from the shopping list
   // Add a new item to the shopping list 
-  const addToShoppingList = (ingredient) => {
-    const existingItem = shoppingList.find(item => item.name.toLowerCase() === ingredient.name.toLowerCase())
-
+ const addToShoppingList = (ingredient) => {
+    const existingItem = shoppingList.find(
+      item => item.name.toLowerCase() === ingredient.name.toLowerCase()
+    )
+    
     let newShoppingList
-    if (existingItem){
-      newShoppingList = shoppingList.map(item => 
+    if (existingItem) {
+      newShoppingList = shoppingList.map(item =>
         item.name.toLowerCase() === ingredient.name.toLowerCase()
-        ? {...item, measure: ingredient.measure} : item
+          ? { ...item, measure: ingredient.measure }
+          : item
       )
     } else {
-      newShoppingList = [...shoppingList, {...ingredient, checked: false}]
+      newShoppingList = [...shoppingList, { ...ingredient, checked: false }]
     }
+    
     setShoppingList(newShoppingList)
-    localStorage.setItem("shoppingList", JSON.stringify(newShoppingList))
+    localStorage.setItem('shoppingList', JSON.stringify(newShoppingList))
+    
+    // Show toast notification
+    setToast({ show: true, message: `${ingredient.name} added to shopping list!` })
+    
+    // Hide toast after 3 seconds
+    setTimeout(() => {
+      setToast({ show: false, message: '' })
+    }, 3000)
   }
 
   // Add all the ingredients from the selected recipe to the shopping list
@@ -643,6 +656,17 @@ function getIngredients(recipe){
           </p>
         )}
       </div>
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span>{toast.message}</span>
+          </div>
+        </div>
+    )}
     </div>
   )
 }
