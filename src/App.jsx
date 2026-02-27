@@ -35,7 +35,13 @@ function App() {
   const [selectedRecipe, setSelectedRecipe] = useState(null)
   const [showFavorites, setShowFavorites] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('')
+  const [showShoppingList, setShowShoppingList] = useState(false)
+  const [shoppingList, setShoppingList] = useState(() => {
+    const savedShopping = localStorage.getItem("shoppingList")
+    return savedShopping ? JSON.parse(savedShopping) : []
+  })
 
+  //::::::::::::SORT BY CATEGORY:::::::::::::::::
   //define the categories of the dishes
   const categories = [
   'All',
@@ -132,19 +138,22 @@ function App() {
   }
 
 //function to extract the ingredients and measures from the API
-  function getIngredients (recipe){
-    const ingredients = [];
-    for(let i = 1; i <= 20; i++){
-      const ingredient = recipe[`strIngredient${i}`]
-      const measure = recipe[`strMeasure${i}`];
+function getIngredients(recipe){
+  const ingredients = [];
+  for(let i = 1; i <= 20; i++){
+    const ingredient = recipe[`strIngredient${i}`]
+    const measure = recipe[`strMeasure${i}`];
 
-      if(ingredient && ingredient.trim() !== ""){
-        ingredients.push(`${measure ? measure.trim() : ""} ${ingredient.trim()}`);
-      }
+    if(ingredient && ingredient.trim() !== ""){
+      // Return object with name and measure properties
+      ingredients.push({
+        name: ingredient.trim(),
+        measure: measure ? measure.trim() : ''
+      });
     }
-    return ingredients;
   }
-
+  return ingredients;
+}
   //function to embed the youtube video url
   function getYoutubeEmbed (url){
     if(!url) return null;
@@ -178,6 +187,73 @@ function App() {
     return favorites.some(fav => fav.idMeal === recipeId)
   }
 
+  // :::::::::::::::SHOPPING LIST::::::::::::::::::::
+
+  //Add shopping list functons for accessing data, updating and displaying data from the shopping list
+  // Add a new item to the shopping list 
+  const addToShoppingList = (ingredient) => {
+    const existingItem = shoppingList.find(item => item.name.toLowerCase() === ingredient.name.toLowerCase())
+
+    let newShoppingList
+    if (existingItem){
+      newShoppingList = shoppingList.map(item => 
+        item.name.toLowerCase() === ingredient.name.toLowerCase()
+        ? {...item, measure: ingredient.measure} : item
+      )
+    } else {
+      newShoppingList = [...shoppingList, {...ingredient, checked: false}]
+    }
+    setShoppingList(newShoppingList)
+    localStorage.setItem("shoppingList", JSON.stringify(newShoppingList))
+  }
+
+  // Add all the ingredients from the selected recipe to the shopping list
+  const addIngredientsToShoppingList = (recipe) => {
+    const ingredients = getIngredients(recipe)
+    let newShoppingList = [...shoppingList]
+
+    ingredients.forEach(ingredient => {
+      const exists = newShoppingList.find(item => item.name.toLowerCase() === ingredient.name.toLowerCase())
+      if(!exists){
+        newShoppingList.push({...ingredient, checked: false})
+      }
+    })
+    setShoppingList(newShoppingList)
+    localStorage.setItem("shoppingList", JSON.stringify(newShoppingList))
+    alert(`All the ingredients from ${recipe.meal} are successfully added to the shopping list`)
+  }
+  // Update an existing item in the shopping list
+  const updateShoppingListItem = (index, updateItem, value) => {
+    const newShoppingList = [...shoppingList]
+    newShoppingList[index][updateItem] = value
+    setShoppingList(newShoppingList)
+    localStorage.setItem("shoppingList", JSON.stringify(newShoppingList))
+  }
+  //Remove an item from the shoppingList
+  const removeFromShoppingList = (index) => {
+    const newShoppingList = shoppingList.filter(item => item !== index)
+    setShoppingList(newShoppingList)
+    localStorage.setItem("shoppingList", JSON.stringify(newShoppingList))
+  }
+  //Function to toggle the checke mode
+  const toggleChecked = (index) => {
+    const newShoppingList = [...shoppingList]
+    newShoppingList[index].checked = !newShoppingList[index].checked
+    setShoppingList(newShoppingList)
+    localStorage.setItem("shoppingList", JSON.stringify(newShoppingList))
+  }
+  //Function to clear the whole of the chopping list
+  const clearShoppingList = () => {
+    if (window.confirm("Are you sure you want to clear your shopping list?")){
+      setShoppingList([])
+      localStorage.removeItem("shoppingList")
+    }
+  }
+  //Function to print the shopping list
+  const printShoppingList = () => {
+    window.print()
+  }
+
   //:::::::::::VIEW RECIPE:::::::::::::
   if(selectedRecipe){
     const ingredients = getIngredients(selectedRecipe)
@@ -207,16 +283,46 @@ function App() {
               <span className="bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 px-3 py-1 rounded-full">🍽️ {selectedRecipe.strCategory}</span>
               <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 px-3 py-1 rounded-full">🌍 {selectedRecipe.strArea}</span>
             </div>
+            {/*Button to add ingredients to shopping list*/}
+            <div className="flex gap-3 mb-6 print:hidden">
+              <button
+                onClick={() => addIngredientsToShoppingList(selectedRecipe)}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+              >
+                🛒 Add All Ingredients to Shopping List
+              </button>
+            </div>
 
             <div className="grid md:grid-cols-2 gap-8">
+            
               {/* Ingredients */}
               <div>
                 <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-100 border-b dark:border-gray-700 pb-2">Ingredients</h2>
                 <ul className="space-y-2">
                   {ingredients.map((item, index) => (
-                    <li key={index} className="flex items-center text-gray-700 dark:text-gray-300">
-                      <span className="w-2 h-2 bg-orange-500 rounded-full mr-3"></span>
-                      {item}
+                    <li key={index} className="flex items-center justify-between text-gray-700 dark:text-gray-300">
+                      <div className="flex items-center gap-3">
+                        <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                        {/* Display ingredient name */}
+                        <span className="text-gray-800 dark:text-gray-100">{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* Display measure */}
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {item.measure}
+                        </span>
+                        {/* Add button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            addToShoppingList(item)
+                          }}
+                          className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 text-sm transition print:hidden font-medium"
+                          title="Add to shopping list"
+                        >
+                          + Add
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -261,6 +367,93 @@ function App() {
     )
   }
   
+  //:::::::::::VIEW SHOPPING LIST:::::::::::::
+  if (showShoppingList) {
+    return (
+      <div className="min-h-screen p-4 md:p-8 bg-gray-50 dark:bg-gray-900 transition-colors">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold text-orange-600 dark:text-orange-400">
+              🛒 Shopping List
+            </h1>
+            <button
+              onClick={() => setShowShoppingList(false)}
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+            >
+              ← Back to Recipes
+            </button>
+          </div>
+
+          {/* Actions */}
+          {shoppingList.length > 0 && (
+            <div className="flex gap-4 mb-6 justify-end print:hidden">
+              <button
+                onClick={printShoppingList}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              >
+                🖨️ Print List
+              </button>
+              <button
+                onClick={clearShoppingList}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              >
+                🗑️ Clear All
+              </button>
+            </div>
+          )}
+
+          {/* Shopping List Items */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+            {shoppingList.length === 0 ? (
+              <div className="text-center text-gray-500 dark:text-gray-400 py-12">
+                <p className="text-2xl mb-4">🛒</p>
+                <p>Your shopping list is empty.</p>
+                <p className="text-sm mt-2">Add ingredients from recipes to build your list!</p>
+              </div>
+            ) : (
+              <ul className="space-y-3">
+                {shoppingList.map((item, index) => (
+                  <li
+                    key={index}
+                    className={`flex items-center gap-3 p-3 rounded-lg border ${
+                      item.checked
+                        ? 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={item.checked}
+                      onChange={() => toggleChecked(index)}
+                      className="w-5 h-5 text-orange-600 rounded focus:ring-orange-500 print:hidden"
+                    />
+                    <input
+                      type="text"
+                      value={item.measure}
+                      onChange={(e) => updateShoppingListItem(index, 'measure', e.target.value)}
+                      className="flex-1 bg-transparent border-none focus:outline-none focus:ring-0 text-gray-800 dark:text-gray-100"
+                      placeholder="Quantity"
+                    />
+                    <span className="flex-1 text-gray-800 dark:text-gray-100 font-medium">
+                      {item.name}
+                    </span>
+                    <button
+                      onClick={() => removeFromShoppingList(index)}
+                      className="text-red-500 hover:text-red-700 transition print:hidden"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   // ::::::::::VIEW SEARCH LIST::::::::::::
   return (
     <div className="min-h-screen p-4 md:p-8 bg-gray-50 dark:bg-gray-900 transition-colors">
@@ -307,15 +500,21 @@ function App() {
           <div className="h-px bg-gradient-to-r from-transparent via-orange-400 to-transparent w-1/4"></div>
         </div>
 
-        {/* Favorites Tab */}
-        <div className="flex justify-center gap-4 mb-6">
+        {/* Navigation Tabs */}
+        <div className="flex flex-wrap justify-center gap-3 mb-6">
           <button
-            onClick={() => setShowFavorites(false)}
+            onClick={() => {
+              setShowFavorites(false)
+              setShowShoppingList(false)
+              setSelectedCategory('')
+            }}
             className={`px-4 py-2 rounded-lg font-semibold transition ${
-              !showFavorites ? 'bg-orange-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+              !showFavorites && !showShoppingList && !selectedCategory
+                ? 'bg-orange-600 text-white'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
             }`}
           >
-            All Recipes
+            🔍 Search Recipes
           </button>
           <button
             onClick={() => setShowFavorites(true)}
@@ -323,7 +522,16 @@ function App() {
               showFavorites ? 'bg-orange-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
             }`}
           >
-            My Favorites ({favorites.length})
+            ❤️ My Favorites ({favorites.length})
+          </button>
+          {/* 👇 ADD SHOPPING LIST TAB BUTTON HERE 👇 */}
+          <button
+            onClick={() => setShowShoppingList(true)}
+            className={`px-4 py-2 rounded-lg font-semibold transition ${
+              showShoppingList ? 'bg-orange-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+            }`}
+          >
+            🛒 Shopping List ({shoppingList.length})
           </button>
         </div>
         
