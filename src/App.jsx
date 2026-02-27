@@ -34,9 +34,66 @@ function App() {
   const [error, setError] = useState(null)
   const [selectedRecipe, setSelectedRecipe] = useState(null)
   const [showFavorites, setShowFavorites] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState('')
 
-  // Fixed: Removed extra spaces in API URL
+  //define the categories of the dishes
+  const categories = [
+  'All',
+  'Beef',
+  'Chicken', 
+  'Dessert',
+  'Lamb',
+  'Pasta',
+  'Pork',
+  'Seafood',
+  'Vegetarian',
+  'Vegan',
+  'Breakfast'
+  ]
+  const CATEGORY_API = 'https://www.themealdb.com/api/json/v1/1/filter.php?c='
+
+
+  // Remove extra spaces in API URL for search
   const API_BASE = 'https://www.themealdb.com/api/json/v1/1/search.php?s='
+  const fetchRecipeByCategory = async (category) => {
+    setLoading(true)
+    setError(null)
+    setSearchTerm("")
+
+    try{
+      const response = await fetch(`${CATEGORY_API}${category}`)
+      const data = await response.json()
+
+      if(data.meals){
+        const recipeDetails = await Promise.all(
+          data.meals.slice(0, 12).map(async (meal) => {
+            const responseDetail = await fetch(
+              `https://www.themealdb.com/api/json/v1/1/lookup.php?i=${meal.idMeal}`
+            )
+            const detailsData = await responseDetail.json()
+            return detailsData.meals[0]})
+        )
+        setRecipes(recipeDetails)
+      } else {
+        setRecipes([])
+        setError(`No recipes found in ${category} category.`)
+      }
+    } catch (error){
+      setError(`Failed to fetch recipes. Check your connection.`)
+    } finally {
+      setLoading(false)
+    }
+  }
+  //setting up the useEffect to cheack for category changes
+
+  useEffect(() => {
+    if(selectedCategory && selectedCategory !== "All"){
+      fetchRecipeByCategory(selectedCategory)
+    } else if(selectedCategory === "All"){
+      setRecipes([])
+      setSearchTerm("")
+    }
+  }, [selectedCategory])
 
   useEffect(() => {
     // This is to  prevent the live search if less than 3 characters have been typedto reduce API calls
@@ -243,7 +300,7 @@ function App() {
           </p>
         </div>
 
-        {/* Decorative Divider */}
+        {/* Decorative line to divide the page */}
         <div className="flex items-center justify-center mb-6 space-x-4">
           <div className="h-px bg-gradient-to-r from-transparent via-orange-400 to-transparent w-1/4"></div>
           <span className="text-xl">🍳</span>
@@ -296,6 +353,43 @@ function App() {
         {/* No Results Message */}
         {!loading && !error && recipes.length === 0 && searchTerm.length >= 3 && (
           <p className="text-center text-gray-500 dark:text-gray-400">No results found. Try a different dish.</p>
+        )}
+
+        {/* Filter by category such as desserts */}
+        {!showFavorites && (
+          <div className="mb-6">
+            <p className="text-center text-gray-600 dark:text-gray-400 mb-3">
+              Browse by Category:
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-3 py-1 rounded-full text-sm transition ${
+                    selectedCategory === category
+                      ? 'bg-orange-600 text-white'
+                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+            {selectedCategory && (
+              <div className="text-center mt-2">
+                <p className="text-gray-600 dark:text-gray-400">
+                  Showing: <span className="font-semibold text-orange-600 dark:text-orange-400">{selectedCategory}</span>
+                  <button
+                    onClick={() => setSelectedCategory('')}
+                    className="ml-2 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  >
+                    (Clear filter)
+                  </button>
+                </p>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Recipe Grid */}
