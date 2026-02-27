@@ -1,16 +1,38 @@
-# React + Vite
+            Recipe PRO Recipe Finder - Capstone Project
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A responsive web application that allows users to search for recipes, view detailed cooking instructions, save favourites, build shopping lists of ingredients, and browse dishes by categories.
 
-Currently, two official plugins are available:
+Live Demo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
 
-## React Compiler
+Project Overview
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+This project was built as part of my Frontend Capstone Project. It demonstrates proficiency in:
+- React.js with Hooks (useState, useEffect)
+- API Integration (TheMealDB API)
+- Responsive Design with Tailwind CSS
+- State Management
+- LocalStorage for data persistence
+- Deployment on Vercel
 
-## Expanding the ESLint configuration
+Features
+    -Search Recipes - Live search with debouncing for optimal API calls
+    -Recipe Details - Full ingredient list, instructions, YouTube video, and source link
+    -Responsive Design - Mobile, tablet, and desktop optimised
+    -Error Handling - User-friendly messages for network issues and no results
+    -Favourites List - Save favourite recipes to localStorage for easier retrieval in future
+    -Shopping List - Add ingredients, edit quantities, check off items, and print the shopping list
+    -Recipe Categories - Browse by 11 predefined categories (Beef, Chicken, Dessert, etc.)
+    -Dark Mode - Toggle between light and dark themes with persistence
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+Technologies Used
+
+    -React.js  - Frontend framework 
+    -Vite - Build tool and dev server 
+    -Tailwind CSS -  Styling and responsive design 
+    -TheMealDB API -  Recipe data source 
+    -LocalStorage  -  Persistent data (favourites, shopping list, theme) 
+    -Vercel  - Deployment platform 
+
+
